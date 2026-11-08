@@ -629,7 +629,7 @@
     // 기존 학습 프로그램 실행
     const appScript = document.createElement('script');
 
-    appScript.src = 'script.js?v=20261108-10';
+    appScript.src = 'script.js?v=20261108-11';
 
     appScript.onerror = () => {
       alert(
