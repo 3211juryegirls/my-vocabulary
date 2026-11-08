@@ -149,7 +149,7 @@ const speechText=(textOverride||((study.mode==='copy'||study.mode==='example')?(
 if(!speechText){notify('읽을 문장이 없습니다.');return}
 window.speechSynthesis.cancel();
 const utterance=new SpeechSynthesisUtterance(speechText);
-utterance.lang='en-US';utterance.rate=0.65;utterance.pitch=1;
+utterance.lang='en-US';utterance.rate=0.4;utterance.pitch=1;
 const voices=window.speechSynthesis.getVoices();
 const voice=voices.find(v=>v.lang&&v.lang.toLowerCase()==='en-us');
 if(voice)utterance.voice=voice;
