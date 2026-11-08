@@ -129,6 +129,46 @@
     }
   `;
 
+  style.textContent += `
+    .mv-profile-btn {
+      background: transparent;
+      border: 0;
+      color: #526451;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 7px 9px;
+    }
+    .mv-profile-overlay {
+      position: fixed; inset: 0; z-index: 100001;
+      background: #26332966; display: grid; place-items: center; padding: 18px;
+      font-family: Arial, sans-serif; color: #354238;
+    }
+    .mv-profile-card {
+      width: min(420px,100%); background: #fffdf8; border: 1px solid #e7e1d5;
+      border-radius: 20px; padding: 24px; box-shadow: 0 18px 55px #394b3825;
+    }
+    .mv-profile-card h2 { margin: 0 0 8px; font-size: 20px; }
+    .mv-profile-card p { color: #758174; font-size: 13px; line-height: 1.5; }
+    .mv-profile-preview {
+      width: 92px; height: 92px; border-radius: 50%; object-fit: cover;
+      display: block; margin: 18px auto; background: #e8eee5; border: 1px solid #dce4d9;
+    }
+    .mv-profile-card label { display:block; font-size:12px; margin:14px 0 6px; }
+    .mv-profile-card input[type=text] {
+      box-sizing:border-box; width:100%; padding:12px; border:1px solid #dedfd5;
+      border-radius:10px; font-size:14px; background:#fffefa;
+    }
+    .mv-profile-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+    .mv-profile-actions button {
+      border:0; border-radius:9px; padding:10px 14px; cursor:pointer;
+      background:#e9eee6; color:#526451;
+    }
+    .mv-profile-actions .primary { background:#829783; color:white; font-weight:600; }
+    .mv-profile-error { min-height:18px; color:#a34f43 !important; }
+    .topbar .avatar { cursor:pointer; overflow:hidden; display:grid; place-items:center; }
+    .topbar .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+`;
+
   document.head.appendChild(style);
 
   // 로그인 / 회원가입 화면
@@ -371,16 +411,16 @@
 
     bar.innerHTML = `
       <span>
-        로그인됨 ·
+        <span id="mv-account-name">사용자</span> ·
         <span id="mv-sync-status">동기화 준비</span>
       </span>
-
-      <button id="mv-logout">
-        로그아웃
-      </button>
+      <button class="mv-profile-btn" id="mv-profile-open">프로필</button>
+      <button id="mv-logout">로그아웃</button>
     `;
 
     document.body.appendChild(bar);
+    bar.querySelector('#mv-profile-open').addEventListener('click', openProfileEditor);
+    refreshProfileDisplay();
 
     bar.querySelector('#mv-logout')
       .addEventListener('click', async () => {
@@ -400,6 +440,152 @@
 
         location.reload();
       });
+  }
+
+
+  // 계정 프로필
+  function profileName() {
+    return currentUser?.user_metadata?.display_name ||
+      currentUser?.email?.split('@')[0] || '사용자';
+  }
+
+  function profileAvatarUrl() {
+    return currentUser?.user_metadata?.avatar_url || '';
+  }
+
+  function refreshProfileDisplay() {
+    const avatar = document.querySelector('.topbar .avatar');
+    if (avatar) {
+      const url = profileAvatarUrl();
+      avatar.innerHTML = url
+        ? `<img src="${url}" alt="프로필 사진">`
+        : 'MV';
+      avatar.title = profileName() + ' · 프로필 수정';
+      avatar.setAttribute('role', 'button');
+      avatar.setAttribute('tabindex', '0');
+      avatar.onclick = openProfileEditor;
+      avatar.onkeydown = event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openProfileEditor();
+        }
+      };
+    }
+    const accountName = document.querySelector('#mv-account-name');
+    if (accountName) accountName.textContent = profileName();
+  }
+
+  async function openProfileEditor() {
+    if (document.querySelector('.mv-profile-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'mv-profile-overlay';
+    overlay.innerHTML = `
+      <section class="mv-profile-card" role="dialog" aria-modal="true" aria-labelledby="mv-profile-title">
+        <h2 id="mv-profile-title">내 프로필</h2>
+        <p>친구들에게 표시될 닉네임과 프로필 사진을 설정할 수 있어요.</p>
+        <img class="mv-profile-preview" id="mv-profile-preview" alt="프로필 미리보기">
+        <label for="mv-profile-photo">프로필 사진</label>
+        <input id="mv-profile-photo" type="file" accept="image/png,image/jpeg,image/webp">
+        <label for="mv-profile-name">닉네임</label>
+        <input id="mv-profile-name" type="text" maxlength="20" placeholder="닉네임 (최대 20자)">
+        <p class="mv-profile-error" id="mv-profile-error"></p>
+        <div class="mv-profile-actions">
+          <button type="button" id="mv-profile-cancel">취소</button>
+          <button type="button" class="primary" id="mv-profile-save">저장</button>
+        </div>
+      </section>
+    `;
+
+    document.body.appendChild(overlay);
+    const preview = overlay.querySelector('#mv-profile-preview');
+    const photoInput = overlay.querySelector('#mv-profile-photo');
+    const nameInput = overlay.querySelector('#mv-profile-name');
+    const errorBox = overlay.querySelector('#mv-profile-error');
+    const saveButton = overlay.querySelector('#mv-profile-save');
+    let selectedFile = null;
+
+    nameInput.value = currentUser.user_metadata?.display_name || '';
+    preview.src = profileAvatarUrl() ||
+      'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#e8eee5"/><circle cx="50" cy="38" r="18" fill="#829783"/><path d="M17 94c3-22 16-33 33-33s30 11 33 33" fill="#829783"/></svg>'
+      );
+
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
+      if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+        errorBox.textContent = 'JPG, PNG, WEBP 형식의 사진만 사용할 수 있어요.';
+        photoInput.value = '';
+        return;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        errorBox.textContent = '사진은 3MB 이하로 선택해 주세요.';
+        photoInput.value = '';
+        return;
+      }
+      selectedFile = file;
+      preview.src = URL.createObjectURL(file);
+      errorBox.textContent = '';
+    });
+
+    overlay.querySelector('#mv-profile-cancel').onclick = () => overlay.remove();
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) overlay.remove();
+    });
+
+    saveButton.onclick = async () => {
+      const displayName = nameInput.value.trim();
+      if (!displayName) {
+        errorBox.textContent = '닉네임을 입력해 주세요.';
+        nameInput.focus();
+        return;
+      }
+
+      saveButton.disabled = true;
+      saveButton.textContent = '저장 중...';
+      errorBox.textContent = '';
+
+      try {
+        let avatarUrl = profileAvatarUrl();
+
+        if (selectedFile) {
+          const extension = selectedFile.type === 'image/png' ? 'png'
+            : selectedFile.type === 'image/webp' ? 'webp' : 'jpg';
+          const filePath = `${currentUser.id}/avatar-${Date.now()}.${extension}`;
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, selectedFile, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: selectedFile.type
+            });
+          if (uploadError) throw uploadError;
+
+          const { data: publicData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          avatarUrl = publicData.publicUrl;
+        }
+
+        const { data, error } = await supabase.auth.updateUser({
+          data: { display_name: displayName, avatar_url: avatarUrl }
+        });
+        if (error) throw error;
+
+        currentUser = data.user;
+        refreshProfileDisplay();
+        overlay.remove();
+        alert('프로필이 저장되었습니다.');
+
+      } catch (error) {
+        console.error('Profile save error:', error);
+        errorBox.textContent = error.message ||
+          '저장에 실패했습니다. Storage 설정을 확인해 주세요.';
+        saveButton.disabled = false;
+        saveButton.textContent = '저장';
+      }
+    };
   }
 
   // 앱 실행
