@@ -147,7 +147,7 @@ const w=study&&word(study.ids[study.index]);if(!w)return;
 if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){notify('이 브라우저는 음성 재생을 지원하지 않습니다.');return}
 window.speechSynthesis.cancel();
 const utterance=new SpeechSynthesisUtterance(w.word);
-utterance.lang='en-US';utterance.rate=0.5;utterance.pitch=1;
+utterance.lang='en-US';utterance.rate=0.3;utterance.pitch=1;
 const voices=window.speechSynthesis.getVoices();
 const voice=voices.find(v=>v.lang&&v.lang.toLowerCase()==='en-us');
 if(voice)utterance.voice=voice;
