@@ -22,6 +22,13 @@
   );
 
   let currentUser = null;
+  window.mvFriendsApi = {
+    getMyInviteCode: () => supabase.from('friend_codes').select('invite_code').eq('id', currentUser.id).single(),
+    sendFriendRequest: code => supabase.rpc('send_friend_request', { code }),
+    respondToRequest: (request_id, accept_request) => supabase.rpc('respond_friend_request', { request_id, accept_request }),
+    getMyFriends: () => supabase.rpc('get_my_friends'),
+    getPendingRequests: () => supabase.rpc('get_pending_friend_requests')
+  };
   let saveTimer = null;
   let originalSetItem = null;
 
