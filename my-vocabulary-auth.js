@@ -557,7 +557,7 @@
             .from('avatars')
             .upload(filePath, selectedFile, {
               cacheControl: '3600',
-              upsert: true,
+              upsert: false,
               contentType: selectedFile.type
             });
           if (uploadError) throw uploadError;
