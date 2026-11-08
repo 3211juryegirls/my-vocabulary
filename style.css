@@ -697,3 +697,5 @@ body {
   .friend-code-row code, .friend-add-form input { width:100%; }
   .friend-actions .btn { padding:8px 10px; }
 }
+
+.language-tab-group{display:inline-flex;align-items:center;gap:4px;padding:3px 5px 3px 3px;border:1px solid var(--line);background:var(--paper);border-radius:22px}.language-tab-group .language-tab{border:0}.language-tool{border:0;background:transparent;color:var(--muted);font-size:10px;padding:5px 6px;border-radius:12px}.language-tool:hover{background:var(--paper2);color:var(--ink)}.language-tool.danger:hover{background:#f8e9e5;color:#a34c3b}
