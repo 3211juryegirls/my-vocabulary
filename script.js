@@ -66,32 +66,59 @@ function openModal(title,body,onSave){$('#modal').innerHTML=`<h2>${title}</h2>${
 function closeModal(){$('#modalBackdrop').classList.remove('show')}
 function bulkWordImport(){
   let lookupResults=[];
+  let searching=new Set();
   const posMap={noun:'noun',verb:'verb',adjective:'adjective',adverb:'adverb',preposition:'preposition',conjunction:'conjunction',pronoun:'pronoun',interjection:'other',exclamation:'other'};
   const unique=arr=>[...new Set(arr.filter(Boolean).map(x=>String(x).trim()).filter(Boolean))];
   function renderCards(){
     const host=$('#bulkLookupResults');
     if(!host)return;
+    if(!lookupResults.length){host.innerHTML='<p class="small muted" style="padding:18px;text-align:center">아직 추가한 단어가 없습니다. 위 입력창에 영어 단어를 입력해 보세요.</p>';return}
     host.innerHTML=lookupResults.map((item,i)=>{
       const posOptions=[['noun','명사'],['verb','동사'],['adjective','형용사'],['adverb','부사'],['preposition','전치사'],['conjunction','접속사'],['pronoun','대명사'],['phrase','숙어·구문'],['other','기타']];
       const posHtml=posOptions.map(p=>'<label class="small"><input type="checkbox" class="checkbox bulk-pos" value="'+p[0]+'" '+(item.parts.includes(p[0])?'checked':'')+'> '+p[1]+'</label>').join('');
       const exampleText=item.examples.map(x=>x.text+' | '+x.translation).join('\n');
-      return '<section class="bulk-word-card" style="border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:var(--paper)">'+
-        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px"><strong style="font-size:15px">'+esc(item.word)+'</strong><span class="tag '+(item.found?'':'beige')+'">'+(item.found?'사전 정보 확인':'직접 입력 필요')+'</span></div>'+
-        (item.error?'<p class="small muted">'+esc(item.error)+'</p>':'')+
-        '<div class="form-group"><label>한국어 뜻 * (쉼표로 구분)</label><input class="bulk-meanings" placeholder="예: 노력하다, 애쓰다" value="'+esc(item.meanings)+'"></div>'+
+      const definitionText=item.definitions.length?'<div style="background:#f5f3ed;border-radius:8px;padding:9px;margin:8px 0"><span class="small muted">영어 사전 설명</span><ul class="small" style="margin:5px 0 0;padding-left:18px">'+item.definitions.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
+      return '<section class="bulk-word-card" data-index="'+i+'" style="border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:var(--paper)">'+
+        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px"><div><strong style="font-size:15px">'+esc(item.word)+'</strong><div class="small muted">'+(item.loading?'사전 검색 중…':item.found?'영어 사전 정보 확인':'검색 결과 일부 없음')+'</div></div><button type="button" class="btn bulk-remove" data-index="'+i+'">삭제</button></div>'+
+        (item.error?'<p class="small muted">'+esc(item.error)+'</p>':'')+definitionText+
+        '<div class="form-group"><label>한국어 뜻 * (쉼표로 구분)</label><input class="bulk-meanings" placeholder="한국어 뜻을 입력해 주세요" value="'+esc(item.meanings)+'"></div>'+
         '<div class="form-group" style="margin-top:10px"><label>품사 (복수 선택)</label><div class="inline-list">'+posHtml+'</div></div>'+
-        '<div class="form-grid" style="margin-top:10px"><div class="form-group"><label>유의어 (쉼표로 구분)</label><input class="bulk-synonyms" value="'+esc(item.synonyms.join(', '))+'"></div><div class="form-group"><label>반의어 (쉼표로 구분)</label><input class="bulk-antonyms" value="'+esc(item.antonyms.join(', '))+'"></div></div>'+
-        '<div class="form-group" style="margin-top:10px"><label>예문 (한 줄에 하나씩, 문장 | 해석)</label><textarea class="bulk-examples" rows="3" placeholder="I struggle to understand it. | 나는 그것을 이해하려고 애쓴다.">'+esc(exampleText)+'</textarea></div></section>';
+        '<div class="form-grid" style="margin-top:10px"><div class="form-group"><label>유의어</label><input class="bulk-synonyms" value="'+esc(item.synonyms.join(', '))+'"></div><div class="form-group"><label>반의어</label><input class="bulk-antonyms" value="'+esc(item.antonyms.join(', '))+'"></div></div>'+
+        '<div class="form-group" style="margin-top:10px"><label>예문 (한 줄에 하나씩, 문장 | 해석)</label><textarea class="bulk-examples" rows="3" placeholder="영어 예문 | 한국어 해석">'+esc(exampleText)+'</textarea></div>'+
+        '<p class="small muted" style="margin:8px 0 0">한국어 뜻과 예문 해석은 자동 제공되지 않아 직접 입력해야 합니다. <a href="https://en.dict.naver.com/#/search?query='+encodeURIComponent(item.word)+'" target="_blank" rel="noopener">네이버 영어사전에서 확인</a></p></section>';
     }).join('');
+    host.querySelectorAll('.bulk-remove').forEach(btn=>btn.onclick=()=>{lookupResults.splice(Number(btn.dataset.index),1);renderCards()});
   }
-  openModal('단어 여러 개 추가',
-    '<p class="small muted">영어 단어를 줄마다 입력하면 사전 정보를 자동으로 찾아 등록 양식에 채워 줍니다. 저장 전에 내용을 수정할 수 있습니다.</p>'+
-    '<div class="form-group"><label for="bulkWordList">영어 단어 목록</label><textarea id="bulkWordList" rows="5" placeholder="struggle&#10;force&#10;forceful"></textarea></div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0"><button type="button" class="btn primary" id="bulkLookupButton">사전 정보 자동 검색</button><span class="small muted" id="bulkLookupStatus">한 번에 최대 15개까지 검색할 수 있습니다.</span></div>'+
-    '<div class="card" style="padding:12px;margin:12px 0"><strong class="small">자동으로 가져오는 정보</strong><p class="small muted" style="margin:5px 0 0">품사 · 유의어 · 반의어 · 예문 최대 5개</p><p class="small muted" style="margin:5px 0 0">한국어 뜻과 예문 해석은 자동 번역이 아니므로 직접 입력하거나 수정해야 합니다.</p></div>'+
-    '<div id="bulkLookupResults"></div><p class="small muted">사전 데이터 출처: Free Dictionary API (dictionaryapi.dev). 검색 결과가 없어도 직접 입력해 저장할 수 있습니다.</p>',
+  async function lookupWord(word){
+    const item={word,loading:true,found:false,error:'',meanings:'',parts:[],synonyms:[],antonyms:[],examples:[],definitions:[]};
+    const index=lookupResults.push(item)-1;renderCards();
+    try{
+      const response=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word));
+      if(!response.ok)throw new Error(response.status===404?'영어 사전에서 찾지 못했습니다.':'사전 서버 응답 오류');
+      const data=await response.json(),meanings=(Array.isArray(data)?data:[]).flatMap(entry=>entry.meanings||[]);
+      item.parts=unique(meanings.map(m=>posMap[m.partOfSpeech]).filter(Boolean));
+      meanings.forEach(m=>(m.definitions||[]).forEach(d=>{
+        if(d.definition)item.definitions.push(d.definition);
+        (d.synonyms||[]).forEach(x=>item.synonyms.push(x));
+        (d.antonyms||[]).forEach(x=>item.antonyms.push(x));
+        if(d.example)item.examples.push({text:d.example,translation:''});
+      }));
+      item.synonyms=unique(item.synonyms);item.antonyms=unique(item.antonyms);
+      item.definitions=unique(item.definitions).slice(0,4);
+      item.examples=item.examples.filter((x,i,a)=>a.findIndex(y=>y.text===x.text)===i).slice(0,5);
+      item.found=true;
+    }catch(error){item.error=(error.message||'검색에 실패했습니다.')+' 네이버 영어사전 링크에서 직접 확인할 수 있습니다.'}
+    item.loading=false;renderCards();
+  }
+  openModal('단어 빠른 추가',
+    '<p class="small muted">영어 단어를 하나씩 입력하고 Enter를 누르세요. 검색이 시작되는 동안에도 다음 단어를 계속 입력할 수 있습니다.</p>'+
+    '<div style="display:flex;gap:8px;align-items:center"><input id="bulkWordInput" style="flex:1;min-width:0" placeholder="영어 단어 입력 후 Enter" autocomplete="off"><button type="button" class="btn primary" id="bulkAddWordButton">단어 추가</button></div>'+
+    '<p id="bulkLookupStatus" class="small muted" style="margin:8px 0 14px">단어를 입력하면 품사·영어 설명·예문·유의어·반의어를 자동 검색합니다.</p>'+
+    '<div id="bulkLookupResults"><p class="small muted" style="padding:18px;text-align:center">아직 추가한 단어가 없습니다. 위 입력창에 영어 단어를 입력해 보세요.</p></div>'+
+    '<p class="small muted" style="margin-top:12px">참고: 네이버 영어사전 전용 API는 현재 제공되지 않습니다. 영어 사전 데이터는 Free Dictionary API에서 검색하며, 네이버 영어사전은 단어별 확인 링크로 연결합니다. 네이버 사전에서 한국어 뜻을 직접 확인해 입력해 주세요.</p>',
     ()=>{
-      if(!lookupResults.length){notify('먼저 단어를 입력하고 사전 정보 자동 검색을 눌러 주세요.');return false}
+      if(!lookupResults.length){notify('먼저 단어를 입력해 주세요.');return false}
+      if(lookupResults.some(x=>x.loading)){notify('사전 검색이 끝날 때까지 기다려 주세요.');return false}
       const cards=[...document.querySelectorAll('.bulk-word-card')],normalized=[];
       for(let i=0;i<cards.length;i++){
         const card=cards[i],item=lookupResults[i];
@@ -106,26 +133,20 @@ function bulkWordImport(){
       notify(added+'개 단어를 추가했습니다.'+(skipped?' 중복 '+skipped+'개는 건너뛰었습니다.':''));return true;
     }
   );
-  $('#bulkLookupButton').onclick=async()=>{
-    const input=$('#bulkWordList'),list=unique(input.value.split(/[\n,]+/)).map(x=>x.trim()).filter(Boolean);
-    if(!list.length){notify('영어 단어를 한 개 이상 입력해 주세요.');input.focus();return}
-    if(list.length>15){notify('한 번에 최대 15개까지 검색할 수 있습니다.');return}
-    const button=$('#bulkLookupButton'),status=$('#bulkLookupStatus');
-    button.disabled=true;button.textContent='검색 중...';status.textContent='사전 정보를 가져오고 있습니다.';
-    lookupResults=await Promise.all(list.map(async word=>{
-      try{
-        const response=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word));
-        if(!response.ok)throw new Error(response.status===404?'사전에서 찾지 못했습니다.':'사전 서버 응답 오류');
-        const data=await response.json(),meanings=(Array.isArray(data)?data:[]).flatMap(entry=>entry.meanings||[]);
-        const parts=unique(meanings.map(m=>posMap[m.partOfSpeech]).filter(Boolean)),synonyms=[],antonyms=[],examples=[];
-        meanings.forEach(m=>(m.definitions||[]).forEach(d=>{(d.synonyms||[]).forEach(x=>synonyms.push(x));(d.antonyms||[]).forEach(x=>antonyms.push(x));if(d.example)examples.push({text:d.example,translation:''})}));
-        return{word,found:true,error:'',meanings:'',parts,synonyms:unique(synonyms),antonyms:unique(antonyms),examples:examples.filter((x,i,a)=>a.findIndex(y=>y.text===x.text)===i).slice(0,5)};
-      }catch(error){return{word,found:false,error:error.message||'검색에 실패했습니다.',meanings:'',parts:[],synonyms:[],antonyms:[],examples:[]}}
-    }));
-    renderCards();status.textContent=lookupResults.filter(x=>x.found).length+'개 검색 성공 · '+lookupResults.filter(x=>!x.found).length+'개 직접 입력 필요';
-    button.disabled=false;button.textContent='다시 검색';
-  };
+  const input=$('#bulkWordInput'),button=$('#bulkAddWordButton'),status=$('#bulkLookupStatus');
+  async function addCurrentWord(){
+    const word=input.value.trim().toLowerCase();
+    if(!word){input.focus();return}
+    if(!/^[a-z]+(?:[ '-][a-z]+)*$/.test(word)){notify('영어 단어만 입력해 주세요.');input.focus();return}
+    if(lookupResults.some(x=>x.word.toLowerCase()===word)||words().some(x=>x.word.toLowerCase()===word)){notify('이미 추가했거나 단어장에 등록된 단어입니다.');input.value='';input.focus();return}
+    if(lookupResults.length>=30){notify('한 번에 최대 30개까지 추가할 수 있습니다.');return}
+    input.value='';status.textContent='“'+word+'” 검색 중입니다. 다음 단어를 입력해도 됩니다.';
+    lookupWord(word);input.focus();
+  }
+  button.onclick=addCurrentWord;
+  input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addCurrentWord()}};
   $('#modalSave').textContent='단어장에 저장';
+  input.focus();
 }
 function wordForm(w={}){let bookOptions=books().map(b=>`<label class="small"><input type="checkbox" class="checkbox wordbook-check" value="${b.id}" ${(w.wordbookIds||[]).includes(b.id)?'checked':''}> ${esc(b.name)}</label>`).join('');openModal(w.id?'단어 수정':'새 단어 등록',`<div class="form-grid"><div class="form-group"><label>영단어 *</label><input id="fWord" value="${esc(w.word||'')}" required></div><div class="form-group"><label>한국어 뜻 * (쉼표로 구분)</label><input id="fMeanings" value="${esc((w.meanings||[]).join(', '))}"></div><div class="form-group full"><label>품사 (복수 선택 가능)</label><div class="inline-list">${[['noun','명사'],['verb','동사'],['adjective','형용사'],['adverb','부사'],['preposition','전치사'],['conjunction','접속사'],['pronoun','대명사'],['phrase','숙어·구문'],['other','기타']].map(([value,label])=>`<label class="small"><input type="checkbox" class="checkbox pos-check" value="${value}" ${(Array.isArray(w.partOfSpeech)?w.partOfSpeech:(w.partOfSpeech?[w.partOfSpeech]:[])).includes(value)?"checked":""}> ${label}</label>`).join("")}</div></div><div class="form-group"><label>유의어 (쉼표로 구분)</label><input id="fSyn" value="${esc((w.synonyms||[]).join(', '))}"></div><div class="form-group"><label>반의어 (쉼표로 구분)</label><input id="fAnt" value="${esc((w.antonyms||[]).join(', '))}"></div><div class="form-group full"><label>예문 (한 줄에 하나씩, 문장 | 해석 형식)</label><textarea id="fExamples" placeholder="I appreciate your help. | 도움에 감사드립니다.">${esc((w.examples||[]).map(e=>e.text+' | '+(e.translation||'')).join('\\n'))}</textarea></div><div class="form-group full"><label>개인 메모</label><textarea id="fMemo">${esc(w.memo||'')}</textarea></div><div class="form-group full"><label>소속 단어장</label><div class="inline-list">${bookOptions||'<span class="muted small">단어장이 없습니다. Wordbooks에서 먼저 만들어주세요.</span>'}</div></div></div>`,()=>{let wordText=$('#fWord').value.trim(),meanings=$('#fMeanings').value.split(',').map(x=>x.trim()).filter(Boolean);if(!wordText||!meanings.length){notify('영단어와 뜻은 필수 입력 항목입니다.');return false}let duplicate=words().find(x=>x.word.toLowerCase()===wordText.toLowerCase()&&x.id!==w.id);if(duplicate){notify('이미 등록된 단어입니다. 기존 단어를 수정해주세요.');return false}let examples=$('#fExamples').value.split('\n').map(line=>{let [text,...tr]=line.split('|');return {text:text.trim(),translation:tr.join('|').trim()}}).filter(x=>x.text);let obj={...w,id:w.id||uid(),word:wordText,meanings,partOfSpeech:[...document.querySelectorAll('.pos-check:checked')].map(x=>x.value),examples,synonyms:$('#fSyn').value.split(',').map(x=>x.trim()).filter(Boolean),antonyms:$('#fAnt').value.split(',').map(x=>x.trim()).filter(Boolean),memo:$('#fMemo').value.trim(),wordbookIds:[...document.querySelectorAll('.wordbook-check:checked')].map(x=>x.value),status:w.status||'learning',createdAt:w.createdAt||new Date().toISOString(),reviewStage:w.reviewStage||0,correctCount:w.correctCount||0,wrongCount:w.wrongCount||0,reviewHistory:w.reviewHistory||[]};if(w.id)Object.assign(w,obj);else words().push(obj);notify('단어가 저장되었습니다.');return true})}
 function addRecord(w,type,correct=null){let r={id:uid(),wordId:w.id,languageId:lang(),sessionId:study?.id||quiz?.id||'review',studyType:type,isCorrect:correct,studiedAt:new Date().toISOString()};state.records.push(r);w.lastStudiedAt=r.studiedAt;if(correct===true)w.correctCount++;if(correct===false)w.wrongCount++}
