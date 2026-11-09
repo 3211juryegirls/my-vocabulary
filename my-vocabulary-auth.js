@@ -27,7 +27,8 @@
     sendFriendRequest: code => supabase.rpc('send_friend_request', { code }),
     respondToRequest: (request_id, accept_request) => supabase.rpc('respond_friend_request', { request_id, accept_request }),
     getMyFriends: () => supabase.rpc('get_my_friends'),
-    getPendingRequests: () => supabase.rpc('get_pending_friend_requests')
+    getPendingRequests: () => supabase.rpc('get_pending_friend_requests'),
+    invokePush: body => supabase.functions.invoke('push-wake', { body })
   };
   let saveTimer = null;
   let originalSetItem = null;
